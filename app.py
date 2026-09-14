@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
-import requests
-import json
+import google.generativeai as genai
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -10,19 +9,22 @@ st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="w
 st.title("🦷 GelNB-DES Hydrogel Platform")
 st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
-# --- 2. CONFIGURE THE NATIVE GEMINI API CONNECTION ---
+# --- 2. CONFIGURE THE NATIVE GEMINI AI CHAT ENGINE ---
 try:
-    # Pull the raw text string from Secrets
+    # 1. Pull the raw text string from your Streamlit Secrets panel
     raw_secret = str(st.secrets["GOOGLE_API_KEY"])
     
-    # SELF-CLEANING MECHANIC: Automatically strip out accidental text wrappers
+    # 2. SELF-CLEANING MECHANIC: Automatically strips out accidental text or equal signs
     clean_key = raw_secret.replace("GOOGLE_API_KEY", "").replace("=", "").replace('"', "").replace("'", "").strip()
     
-    # Base endpoint address targeting the modern architecture
-    API_URL = "https://googleapis.com"
+    # 3. Configure the official library core using the cleaned key
+    genai.configure(api_key=clean_key)
+    
+    # 4. Initialize the robust, stable model engine
+    ai_model = genai.GenerativeModel('gemini-1.5-flash')
     api_ready = True
 except Exception as e:
-    st.error(f"Failed to parse secret credentials. Error: {e}")
+    st.error(f"Failed to initialize AI Engine. Error: {e}")
     api_ready = False
 
 # --- 3. TRAIN THE PREDICTIVE MODELLING AI ---
@@ -52,11 +54,11 @@ user_des = st.sidebar.slider("Deep Eutectic Solvent (%)", 0.0, 30.0, 18.0, 1.0)
 user_lap = st.sidebar.slider("LAP Concentration (mM)", 0.5, 3.0, 1.8, 0.1)
 user_light = st.sidebar.slider("Blue Light Exposure (seconds)", 10, 90, 50, 5)
 
-# Calculate live mechanical predictions
+# Calculate live mechanical predictions from the matrix
 new_recipe = pd.DataFrame([{'GelNB_percent': user_gelnb, 'DES_percent': user_des, 'LAP_mM': user_lap, 'Light_secs': user_light}])
 prediction = model.predict(new_recipe)
 
-# INDEXING FIX: Extract the values as single numbers out of the array matrix
+# Floating type extraction to prevent array structure conflicts
 predicted_mpa = float(prediction[0][0])
 predicted_deg = float(prediction[0][1])
 
@@ -87,7 +89,7 @@ with right_column:
     user_question = st.text_input("Your Question:", placeholder="e.g., Why is LAP better than Irgacure for dental use?")
     
     if user_question:
-        if api_ready:
+        if api_ready and ai_model is not None:
             with st.spinner("Gemini is analyzing biomaterial properties..."):
                 expert_prompt = (
                     "You are an elite expert AI in dental bone regeneration biomaterials. "
@@ -95,30 +97,11 @@ with right_column:
                     "and LAP photoinitiator with 405nm blue light. "
                     f"Answer this question concisely and scientifically: {user_question}"
                 )
-                
-                headers = {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": clean_key
-                }
-                
-                payload = {
-                    "contents": [{
-                        "parts": [{
-                            "text": expert_prompt
-                        }]
-                    }]
-                }
-                
                 try:
-                    response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
-                    
-                    if response.status_code == 200:
-                        response_json = response.json()
-                        answer_text = response_json['candidates']['content']['parts']['text']
-                        st.info(answer_text)
-                    else:
-                        st.error(f"Google API Error ({response.status_code}): {response.text}")
+                    # Let the official library object call the response natively
+                    response = ai_model.generate_content(expert_prompt)
+                    st.info(response.text)
                 except Exception as api_err:
-                    st.error(f"Network Processing Fault: {api_err}")
+                    st.error(f"AI Assistant Processing Error: {api_err}")
         else:
             st.error("⚠️ AI Chat engine is offline. Check secret credentials structure configuration.")
