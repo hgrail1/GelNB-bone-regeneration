@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 import requests
+import json
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -11,11 +12,11 @@ st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
 # --- 2. CONFIGURE THE NATIVE GEMINI API CONNECTION ---
 try:
-    # Safely pull your key from Streamlit's secrets manager
+    # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Target URL string cleanly separated from the key parameter to prevent domain-smashing
-    API_URL = "https://googleapis.com"
+    # Target URL string cleanly separated
+    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
@@ -90,24 +91,32 @@ with right_column:
                     f"Answer this question concisely and scientifically: {user_question}"
                 )
                 
-                # Use standard Google REST headers to cleanly pass the key parameters
+                # Mapped explicit headers for the standard REST package
                 headers = {
                     "Content-Type": "application/json",
                     "x-goog-api-key": GOOGLE_API_KEY
                 }
-                payload = {"contents": [{"parts": [{"text": expert_prompt}]}]}
+                
+                # Format payload payload explicitly as a strictly typed nested dictionary framework
+                payload = {
+                    "contents": [{
+                        "parts": [{
+                            "text": expert_prompt
+                        }]
+                    }]
+                }
                 
                 try:
-                    # Pass parameters cleanly via explicit headers
-                    response = requests.post(API_URL, headers=headers, json=payload)
-                    response_json = response.json()
+                    # Pass the payload explicitly using data=json.dumps to prevent empty parameters bugs
+                    response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
                     
+                    # Intercept non-200 responses to safely print text instead of crashing on empty strings
                     if response.status_code == 200:
-                        # Safely display the text block out of the returning JSON array
+                        response_json = response.json()
                         answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
                         st.info(answer_text)
                     else:
-                        st.error(f"Google Server Error ({response.status_code}): {response_json.get('error', {}).get('message', 'Unknown Error')}")
+                        st.error(f"Google API returned an error code ({response.status_code}): {response.text}")
                 except Exception as api_err:
                     st.error(f"Network Connection Error: {api_err}")
         else:
