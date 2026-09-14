@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
-import google.generativeai as genai
+import requests
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -9,17 +9,17 @@ st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="w
 st.title("🦷 GelNB-DES Hydrogel Platform")
 st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
-# --- 2. CONFIGURE THE GOOGLE GEMINI AI CHAT ENGINE ---
+# --- 2. CONFIGURE THE NATIVE GEMINI API CONNECTION ---
 try:
-    # Pull the key from Streamlit's secrets manager
+    # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Configure the library directly using the api_key parameter to support "AQ." style keys
-    genai.configure(api_key=GOOGLE_API_KEY)
-    ai_model = genai.GenerativeModel('gemini-1.5-flash')
+    # Establish direct REST URL routing targeting the specific Gemini model
+    API_URL = f"https://googleapis.com{GOOGLE_API_KEY}"
+    api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
-    ai_model = None
+    api_ready = False
 
 # --- 3. TRAIN THE PREDICTIVE MODELLING AI ---
 @st.cache_data
@@ -78,22 +78,33 @@ with right_column:
     st.markdown("### 💬 Ask the Platform Assistant")
     st.write("Type a custom scientific question about GelNB, LAP crosslinking, or Deep Eutectic Solvents below:")
     
-    # Text input box for user questions
     user_question = st.text_input("Your Question:", placeholder="e.g., Why is LAP better than Irgacure for dental use?")
     
     if user_question:
-        if ai_model:
-            with st.spinner("AI is analyzing biomaterial properties..."):
+        if api_ready:
+            with st.spinner("Gemini is analyzing biomaterial properties..."):
                 expert_prompt = (
                     "You are an elite expert AI in dental bone regeneration biomaterials. "
                     "Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), "
                     "and LAP photoinitiator with 405nm blue light. "
                     f"Answer this question concisely and scientifically: {user_question}"
                 )
+                
+                # Format request payload natively to accept the new AQ key protocol
+                headers = {"Content-Type": "application/json"}
+                payload = {"contents": [{"parts": [{"text": expert_prompt}]}]}
+                
                 try:
-                    response = ai_model.generate_content(expert_prompt)
-                    st.info(response.text)
+                    response = requests.post(API_URL, headers=headers, json=payload)
+                    response_json = response.json()
+                    
+                    if response.status_code == 200:
+                        # Extract the clean response text out of Google's dictionary array structure
+                        answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
+                        st.info(answer_text)
+                    else:
+                        st.error(f"Google Server Error ({response.status_code}): {response_json.get('error', {}).get('message', 'Unknown Error')}")
                 except Exception as api_err:
-                    st.error(f"Google Gemini API Error: {api_err}")
+                    st.error(f"Network Connection Error: {api_err}")
         else:
-            st.error("⚠️ AI Chat engine is currently unavailable. Please verify your web application credentials.")
+            st.error("⚠️ AI Chat engine is currently offline. Verify your GOOGLE_API_KEY value is saved in the Secrets panel.")
