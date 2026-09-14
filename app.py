@@ -91,5 +91,6 @@ with right_column:
                     contents=expert_prompt,
                 )
                 st.info(response.text)
+
         else:
             st.error("⚠️ Please insert your valid Google API Key on line 11 of app.py to activate the chat function.")
