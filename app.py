@@ -14,9 +14,9 @@ try:
     # Safely pull the key from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Create the client using the correct modern initialization format
-    client = genai.Client(api_key=GOOGLE_API_KEY)
-    ai_model = client.models
+    # Configure the library and initialize the model
+    genai.configure(api_key=GOOGLE_API_KEY)
+    ai_model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
     ai_model = None
@@ -81,16 +81,11 @@ with right_column:
     # Text input box for user questions
     user_question = st.text_input("Your Question:", placeholder="e.g., Why is LAP better than Irgacure for dental use?")
     
-       if user_question:
+    if user_question:
         if ai_model:
             with st.spinner("AI is analyzing biomaterial properties..."):
                 expert_prompt = f"You are an elite expert AI in dental bone regeneration biomaterials. Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), and LAP photoinitiator with 405nm blue light. Answer this question concisely and scientifically: {user_question}"
-                # Using the modern library call format
-                response = ai_model.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=expert_prompt,
-                )
+                response = ai_model.generate_content(expert_prompt)
                 st.info(response.text)
-
         else:
-            st.error("⚠️ Please insert your valid Google API Key on line 11 of app.py to activate the chat function.")
+            st.error("⚠️ AI Chat engine is currently unavailable. Please verify your Google API key settings.")
