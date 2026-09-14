@@ -12,14 +12,14 @@ st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
 # --- 2. CONFIGURE THE NATIVE GEMINI API CONNECTION ---
 try:
-    # 1. Pull the raw raw string text from Secrets
+    # Pull the raw text string from Secrets
     raw_secret = str(st.secrets["GOOGLE_API_KEY"])
     
-    # 2. SELF-CLEANING MECHANIC: Automatically strip out accidental text wrappers
+    # SELF-CLEANING MECHANIC: Automatically strip out accidental text wrappers
     clean_key = raw_secret.replace("GOOGLE_API_KEY", "").replace("=", "").replace('"', "").replace("'", "").strip()
     
-    # 3. Base endpoint address targeting the modern architecture
-    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    # Base endpoint address targeting the modern architecture
+    API_URL = "https://googleapis.com"
     api_ready = True
 except Exception as e:
     st.error(f"Failed to parse secret credentials. Error: {e}")
@@ -55,8 +55,10 @@ user_light = st.sidebar.slider("Blue Light Exposure (seconds)", 10, 90, 50, 5)
 # Calculate live mechanical predictions
 new_recipe = pd.DataFrame([{'GelNB_percent': user_gelnb, 'DES_percent': user_des, 'LAP_mM': user_lap, 'Light_secs': user_light}])
 prediction = model.predict(new_recipe)
-predicted_mpa = prediction
-predicted_deg = prediction
+
+# INDEXING FIX: Extract the values as single numbers out of the array matrix
+predicted_mpa = float(prediction[0][0])
+predicted_deg = float(prediction[0][1])
 
 # --- 5. LAYOUT: SPLIT SCREEN INTO PREDICTIONS VS CHAT PANEL ---
 left_column, right_column = st.columns(2)
@@ -94,7 +96,6 @@ with right_column:
                     f"Answer this question concisely and scientifically: {user_question}"
                 )
                 
-                # Use standard header-based developer key authentication
                 headers = {
                     "Content-Type": "application/json",
                     "x-goog-api-key": clean_key
