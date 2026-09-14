@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 import requests
-import json
-import time
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -11,13 +9,19 @@ st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="w
 st.title("🦷 GelNB-DES Hydrogel Platform")
 st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
-# --- 2. CONFIGURE THE NATIVE GEMINI API CONNECTION ---
+# --- 2. CONFIGURE THE NATIVE OPENAI-COMPATIBLE ROUTING ENGINE ---
 try:
     # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Target URL updated to use the active production model engine
-    API_URL = "https://googleapis.com"
+    # Standard stable endpoint that processes requests reliably on cloud platforms
+    API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    
+    # Pass authorization securely through standard bearer tokens
+    headers = {
+        "Authorization": f"Bearer {GOOGLE_API_KEY}",
+        "Content-Type": "application/json"
+    }
     api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
@@ -84,61 +88,33 @@ with right_column:
     
     if user_question:
         if api_ready:
-            # Setup a placeholder warning for the user during server high traffic spikes
-            status_placeholder = st.empty()
-            
-            headers = {
-                "Content-Type": "application/json",
-                "x-goog-api-key": GOOGLE_API_KEY
-            }
-            
-            expert_prompt = (
-                "You are an elite expert AI in dental bone regeneration biomaterials. "
-                "Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), "
-                "and LAP photoinitiator with 405nm blue light. "
-                f"Answer this question concisely and scientifically: {user_question}"
-            )
-            
-            payload = {
-                "contents": [{"parts": [{"text": expert_prompt}]}]
-            }
-            
-            # --- RESILIENT RETRY MECHANIC FOR 503 OVERLOADS ---
-            max_retries = 3
-            wait_time = 3  # Seconds to wait before checking the server line again
-            success = False
-            
-            for attempt in range(max_retries):
-                with status_placeholder.container():
-                    st.spinner(f"AI is analyzing biomaterial properties (Attempt {attempt+1}/{max_retries})...")
+            with st.spinner("Assistant is formulating response..."):
+                # Clean, human-readable structure layout accepted by standard endpoints
+                payload = {
+                    "model": "gemini-2.5-flash", 
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are an elite expert AI in dental bone regeneration biomaterials. Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), and LAP photoinitiator with 405nm blue light. Give concise, highly scientific answers."
+                        },
+                        {
+                            "role": "user",
+                            "content": user_question
+                        }
+                    ]
+                }
                 
                 try:
-                    response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
+                    response = requests.post(API_URL, headers=headers, json=payload)
                     
                     if response.status_code == 200:
                         response_json = response.json()
-                        answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
-                        status_placeholder.empty()  # Clear status bar on complete success
+                        # Extract the final answer smoothly using standardized parsing configurations
+                        answer_text = response_json['choices'][0]['message']['content']
                         st.info(answer_text)
-                        success = True
-                        break
-                    elif response.status_code == 503:
-                        # Server is crowded, pause execution loop and stagger the next run attempt
-                        time.sleep(wait_time)
-                        wait_time *= 2  # Exponential delay backoff spacing
                     else:
-                        status_placeholder.empty()
-                        st.error(f"Google API returned an error code ({response.status_code}): {response.text}")
-                        success = True
-                        break
+                        st.error(f"Platform Error ({response.status_code}): {response.text}")
                 except Exception as api_err:
-                    status_placeholder.empty()
                     st.error(f"Network Connection Error: {api_err}")
-                    success = True
-                    break
-            
-            if not success:
-                status_placeholder.empty()
-                st.error("⏳ Google servers are currently handling high-demand traffic loops. Please click enter to retry your query in a few seconds!")
         else:
             st.error("⚠️ AI Chat engine is offline. Verify your GOOGLE_API_KEY value is saved in the Secrets panel.")
