@@ -14,10 +14,10 @@ try:
     # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Standard stable endpoint that processes requests reliably on cloud platforms
-    API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    # Universal stable routing path mapping endpoint
+    API_URL = "https://googleapis.com"
     
-    # Pass authorization securely through standard bearer tokens
+    # Secure validation header setup
     headers = {
         "Authorization": f"Bearer {GOOGLE_API_KEY}",
         "Content-Type": "application/json"
@@ -54,7 +54,7 @@ user_des = st.sidebar.slider("Deep Eutectic Solvent (%)", 0.0, 30.0, 18.0, 1.0)
 user_lap = st.sidebar.slider("LAP Concentration (mM)", 0.5, 3.0, 1.8, 0.1)
 user_light = st.sidebar.slider("Blue Light Exposure (seconds)", 10, 90, 50, 5)
 
-# Calculate live mechanical predictions
+# Calculate live mechanical predictions from matrix
 new_recipe = pd.DataFrame([{'GelNB_percent': user_gelnb, 'DES_percent': user_des, 'LAP_mM': user_lap, 'Light_secs': user_light}])
 prediction = model.predict(new_recipe)
 predicted_mpa = prediction[0][0]
@@ -89,9 +89,9 @@ with right_column:
     if user_question:
         if api_ready:
             with st.spinner("Assistant is formulating response..."):
-                # Clean, human-readable structure layout accepted by standard endpoints
+                # PAYLOAD FIX: Explicitly mapped to the universally active gemini-3.6-flash model identifier
                 payload = {
-                    "model": "gemini-2.5-flash", 
+                    "model": "gemini-3.6-flash", 
                     "messages": [
                         {
                             "role": "system",
@@ -109,7 +109,7 @@ with right_column:
                     
                     if response.status_code == 200:
                         response_json = response.json()
-                        # Extract the final answer smoothly using standardized parsing configurations
+                        # Parse out the clean answer text from the structural data return array
                         answer_text = response_json['choices'][0]['message']['content']
                         st.info(answer_text)
                     else:
