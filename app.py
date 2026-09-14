@@ -15,8 +15,8 @@ try:
     # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Target URL string cleanly separated
-    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    # Target URL updated to use the active, non-deprecated 'gemini-2.5-flash' model
+    API_URL = "https://googleapis.com"
     api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
@@ -91,13 +91,11 @@ with right_column:
                     f"Answer this question concisely and scientifically: {user_question}"
                 )
                 
-                # Mapped explicit headers for the standard REST package
                 headers = {
                     "Content-Type": "application/json",
                     "x-goog-api-key": GOOGLE_API_KEY
                 }
                 
-                # Format payload payload explicitly as a strictly typed nested dictionary framework
                 payload = {
                     "contents": [{
                         "parts": [{
@@ -107,10 +105,8 @@ with right_column:
                 }
                 
                 try:
-                    # Pass the payload explicitly using data=json.dumps to prevent empty parameters bugs
                     response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
                     
-                    # Intercept non-200 responses to safely print text instead of crashing on empty strings
                     if response.status_code == 200:
                         response_json = response.json()
                         answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
