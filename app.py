@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
-import requests
-import json
+import google.generativeai as genai
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -10,16 +9,19 @@ st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="w
 st.title("🦷 GelNB-DES Hydrogel Platform")
 st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
-# --- 2. CONFIGURE THE NATIVE GEMINI API CONNECTION ---
+# --- 2. CONFIGURE THE GOOGLE GEMINI AI CHAT ENGINE ---
 try:
     # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Target URL updated to use the active, current production 'gemini-3.6-flash' model
-    API_URL = "https://googleapis.com"
+    # Configure the core library explicitly using your developer key
+    genai.configure(api_key=GOOGLE_API_KEY)
+    
+    # Target the robust, globally active production model version
+    ai_model = genai.GenerativeModel('gemini-1.5-flash')
     api_ready = True
 except Exception as e:
-    st.error(f"Failed to load API Key from Secrets. Error: {e}")
+    st.error(f"Failed to load AI Engine from Secrets. Error: {e}")
     api_ready = False
 
 # --- 3. TRAIN THE PREDICTIVE MODELLING AI ---
@@ -82,7 +84,7 @@ with right_column:
     user_question = st.text_input("Your Question:", placeholder="e.g., Why is LAP better than Irgacure for dental use?")
     
     if user_question:
-        if api_ready:
+        if api_ready and ai_model is not None:
             with st.spinner("Gemini is analyzing biomaterial properties..."):
                 expert_prompt = (
                     "You are an elite expert AI in dental bone regeneration biomaterials. "
@@ -90,31 +92,11 @@ with right_column:
                     "and LAP photoinitiator with 405nm blue light. "
                     f"Answer this question concisely and scientifically: {user_question}"
                 )
-                
-                headers = {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": GOOGLE_API_KEY
-                }
-                
-                payload = {
-                    "contents": [{
-                        "parts": [{
-                            "text": expert_prompt
-                        }]
-                    }]
-                }
-                
                 try:
-                    response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
-                    
-                    if response.status_code == 200:
-                        response_json = response.json()
-                        # Extract text safely from the nested REST JSON dictionary format
-                        answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
-                        st.info(answer_text)
-                    else:
-                        st.error(f"Google API returned an error code ({response.status_code}): {response.text}")
+                    # Direct client instruction pattern using verified internal objects
+                    response = ai_model.generate_content(expert_prompt)
+                    st.info(response.text)
                 except Exception as api_err:
-                    st.error(f"Network Connection Error: {api_err}")
+                    st.error(f"AI Assistant Processing Error: {api_err}")
         else:
             st.error("⚠️ AI Chat engine is offline. Verify your GOOGLE_API_KEY value is saved in the Secrets panel.")
