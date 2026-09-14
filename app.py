@@ -10,13 +10,15 @@ st.title("🦷 GelNB-DES Hydrogel Platform")
 st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
 # --- 2. CONFIGURE THE GOOGLE GEMINI AI CHAT ENGINE ---
-# Paste your free Google AI Studio key here:
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-
-if GOOGLE_API_KEY != "PASTE_YOUR_API_KEY_HERE":
-    genai.configure(api_key=GOOGLE_API_KEY)
-    ai_model = genai.GenerativeModel('gemini-1.5-flash')
-else:
+try:
+    # Safely pull the key from Streamlit's secrets manager
+    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+    
+    # Create the client using the correct modern initialization format
+    client = genai.Client(api_key=GOOGLE_API_KEY)
+    ai_model = client.models
+except Exception as e:
+    st.error(f"Failed to load API Key from Secrets. Error: {e}")
     ai_model = None
 
 # --- 3. TRAIN THE PREDICTIVE MODELLING AI ---
@@ -79,12 +81,15 @@ with right_column:
     # Text input box for user questions
     user_question = st.text_input("Your Question:", placeholder="e.g., Why is LAP better than Irgacure for dental use?")
     
-    if user_question:
+       if user_question:
         if ai_model:
             with st.spinner("AI is analyzing biomaterial properties..."):
-                # Inject dental-specific expert context behind the scenes so the AI responds like a biomaterial scientist
                 expert_prompt = f"You are an elite expert AI in dental bone regeneration biomaterials. Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), and LAP photoinitiator with 405nm blue light. Answer this question concisely and scientifically: {user_question}"
-                response = ai_model.generate_content(expert_prompt)
+                # Using the modern library call format
+                response = ai_model.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=expert_prompt,
+                )
                 st.info(response.text)
         else:
             st.error("⚠️ Please insert your valid Google API Key on line 11 of app.py to activate the chat function.")
