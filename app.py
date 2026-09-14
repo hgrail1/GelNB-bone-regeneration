@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 import requests
 import json
+import time
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -15,8 +16,8 @@ try:
     # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # PRODUCTION ROUTING PATH: Updated to use the active production model engine
-    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
+    # Target URL updated to use the active production model engine
+    API_URL = "https://googleapis.com"
     api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
@@ -83,38 +84,61 @@ with right_column:
     
     if user_question:
         if api_ready:
-            with st.spinner("Gemini is analyzing biomaterial properties..."):
-                expert_prompt = (
-                    "You are an elite expert AI in dental bone regeneration biomaterials. "
-                    "Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), "
-                    "and LAP photoinitiator with 405nm blue light. "
-                    f"Answer this question concisely and scientifically: {user_question}"
-                )
-                
-                headers = {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": GOOGLE_API_KEY
-                }
-                
-                payload = {
-                    "contents": [{
-                        "parts": [{
-                            "text": expert_prompt
-                        }]
-                    }]
-                }
+            # Setup a placeholder warning for the user during server high traffic spikes
+            status_placeholder = st.empty()
+            
+            headers = {
+                "Content-Type": "application/json",
+                "x-goog-api-key": GOOGLE_API_KEY
+            }
+            
+            expert_prompt = (
+                "You are an elite expert AI in dental bone regeneration biomaterials. "
+                "Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), "
+                "and LAP photoinitiator with 405nm blue light. "
+                f"Answer this question concisely and scientifically: {user_question}"
+            )
+            
+            payload = {
+                "contents": [{"parts": [{"text": expert_prompt}]}]
+            }
+            
+            # --- RESILIENT RETRY MECHANIC FOR 503 OVERLOADS ---
+            max_retries = 3
+            wait_time = 3  # Seconds to wait before checking the server line again
+            success = False
+            
+            for attempt in range(max_retries):
+                with status_placeholder.container():
+                    st.spinner(f"AI is analyzing biomaterial properties (Attempt {attempt+1}/{max_retries})...")
                 
                 try:
                     response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
                     
                     if response.status_code == 200:
                         response_json = response.json()
-                        # Extract text safely from the nested dictionary structure response
                         answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
+                        status_placeholder.empty()  # Clear status bar on complete success
                         st.info(answer_text)
+                        success = True
+                        break
+                    elif response.status_code == 503:
+                        # Server is crowded, pause execution loop and stagger the next run attempt
+                        time.sleep(wait_time)
+                        wait_time *= 2  # Exponential delay backoff spacing
                     else:
+                        status_placeholder.empty()
                         st.error(f"Google API returned an error code ({response.status_code}): {response.text}")
+                        success = True
+                        break
                 except Exception as api_err:
+                    status_placeholder.empty()
                     st.error(f"Network Connection Error: {api_err}")
+                    success = True
+                    break
+            
+            if not success:
+                status_placeholder.empty()
+                st.error("⏳ Google servers are currently handling high-demand traffic loops. Please click enter to retry your query in a few seconds!")
         else:
             st.error("⚠️ AI Chat engine is offline. Verify your GOOGLE_API_KEY value is saved in the Secrets panel.")
