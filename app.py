@@ -15,8 +15,8 @@ try:
     # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Target URL updated to use the active, non-deprecated 'gemini-2.5-flash' model
-    API_URL = "https://googleapis.com"
+    # FIXED ENDPOINT PATH: Explicitly includes the full nested directory routing syntax
+    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
