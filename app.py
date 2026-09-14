@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 import google.generativeai as genai
-import os
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -12,13 +11,10 @@ st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
 # --- 2. CONFIGURE THE GOOGLE GEMINI AI CHAT ENGINE ---
 try:
-    # 1. Pull the key from Streamlit's secrets manager
+    # Pull the key from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # 2. Inject it straight into the environment variables to bypass authorization blocks
-    os.environ["GEMINI_API_KEY"] = GOOGLE_API_KEY
-    
-    # 3. Configure the generative engine
+    # Configure the library directly using the api_key parameter to support "AQ." style keys
     genai.configure(api_key=GOOGLE_API_KEY)
     ai_model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
@@ -100,4 +96,4 @@ with right_column:
                 except Exception as api_err:
                     st.error(f"Google Gemini API Error: {api_err}")
         else:
-            st.error("⚠️ AI Chat engine is currently unavailable. Please check your system environmental settings.")
+            st.error("⚠️ AI Chat engine is currently unavailable. Please verify your web application credentials.")
