@@ -11,11 +11,11 @@ st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
 # --- 2. CONFIGURE THE NATIVE GEMINI API CONNECTION ---
 try:
-    # Pull your Google API key safely from Streamlit's secrets manager
+    # Safely pull your key from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Establish direct REST URL routing targeting the specific Gemini model
-    API_URL = f"https://googleapis.com{GOOGLE_API_KEY}"
+    # Target URL string cleanly separated from the key parameter to prevent domain-smashing
+    API_URL = "https://googleapis.com"
     api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
@@ -90,16 +90,20 @@ with right_column:
                     f"Answer this question concisely and scientifically: {user_question}"
                 )
                 
-                # Format request payload natively to accept the new AQ key protocol
-                headers = {"Content-Type": "application/json"}
+                # Use standard Google REST headers to cleanly pass the key parameters
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": GOOGLE_API_KEY
+                }
                 payload = {"contents": [{"parts": [{"text": expert_prompt}]}]}
                 
                 try:
+                    # Pass parameters cleanly via explicit headers
                     response = requests.post(API_URL, headers=headers, json=payload)
                     response_json = response.json()
                     
                     if response.status_code == 200:
-                        # Extract the clean response text out of Google's dictionary array structure
+                        # Safely display the text block out of the returning JSON array
                         answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
                         st.info(answer_text)
                     else:
@@ -107,4 +111,4 @@ with right_column:
                 except Exception as api_err:
                     st.error(f"Network Connection Error: {api_err}")
         else:
-            st.error("⚠️ AI Chat engine is currently offline. Verify your GOOGLE_API_KEY value is saved in the Secrets panel.")
+            st.error("⚠️ AI Chat engine is offline. Verify your GOOGLE_API_KEY value is saved in the Secrets panel.")
