@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 import google.generativeai as genai
+import os
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -11,10 +12,13 @@ st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
 # --- 2. CONFIGURE THE GOOGLE GEMINI AI CHAT ENGINE ---
 try:
-    # Safely pull the key from Streamlit's secrets manager
+    # 1. Pull the key from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Configure the library and initialize the model
+    # 2. Inject it straight into the environment variables to bypass authorization blocks
+    os.environ["GEMINI_API_KEY"] = GOOGLE_API_KEY
+    
+    # 3. Configure the generative engine
     genai.configure(api_key=GOOGLE_API_KEY)
     ai_model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
@@ -84,8 +88,16 @@ with right_column:
     if user_question:
         if ai_model:
             with st.spinner("AI is analyzing biomaterial properties..."):
-                expert_prompt = f"You are an elite expert AI in dental bone regeneration biomaterials. Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), and LAP photoinitiator with 405nm blue light. Answer this question concisely and scientifically: {user_question}"
-                response = ai_model.generate_content(expert_prompt)
-                st.info(response.text)
+                expert_prompt = (
+                    "You are an elite expert AI in dental bone regeneration biomaterials. "
+                    "Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), "
+                    "and LAP photoinitiator with 405nm blue light. "
+                    f"Answer this question concisely and scientifically: {user_question}"
+                )
+                try:
+                    response = ai_model.generate_content(expert_prompt)
+                    st.info(response.text)
+                except Exception as api_err:
+                    st.error(f"Google Gemini API Error: {api_err}")
         else:
-            st.error("⚠️ AI Chat engine is currently unavailable. Please verify your Google API key settings.")
+            st.error("⚠️ AI Chat engine is currently unavailable. Please check your system environmental settings.")
