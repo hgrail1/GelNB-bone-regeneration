@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 import requests
+import json
 
 # --- 1. SET UP THE APPLICATION INTERFACE ---
 st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
@@ -9,19 +10,13 @@ st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="w
 st.title("🦷 GelNB-DES Hydrogel Platform")
 st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
-# --- 2. CONFIGURE THE NATIVE OPENAI-COMPATIBLE ROUTING ENGINE ---
+# --- 2. CONFIGURE THE CORRECT NATIVE GEMINI API ROUTE ---
 try:
-    # Pull your Google API key safely from Streamlit's secrets manager
+    # Safely pull your Google API key from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # Universal stable routing path mapping endpoint
-    API_URL = "https://googleapis.com"
-    
-    # Secure validation header setup
-    headers = {
-        "Authorization": f"Bearer {GOOGLE_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    # DEFINITIVE NATIVE ENDPOINT: Mapped using the globally stable v1beta architecture
+    API_URL = f"https://googleapis.com{GOOGLE_API_KEY}"
     api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
@@ -89,28 +84,30 @@ with right_column:
     if user_question:
         if api_ready:
             with st.spinner("Assistant is formulating response..."):
-                # PAYLOAD FIX: Explicitly mapped to the universally active gemini-3.6-flash model identifier
+                expert_prompt = (
+                    "You are an elite expert AI in dental bone regeneration biomaterials. "
+                    "Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), "
+                    "and LAP photoinitiator with 405nm blue light. Give concise, highly scientific answers. "
+                    f"Question: {user_question}"
+                )
+                
+                # Standard native parameters schema configuration
+                headers = {"Content-Type": "application/json"}
                 payload = {
-                    "model": "gemini-3.6-flash", 
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are an elite expert AI in dental bone regeneration biomaterials. Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), and LAP photoinitiator with 405nm blue light. Give concise, highly scientific answers."
-                        },
-                        {
-                            "role": "user",
-                            "content": user_question
-                        }
-                    ]
+                    "contents": [{
+                        "parts": [{
+                            "text": expert_prompt
+                        }]
+                    }]
                 }
                 
                 try:
-                    response = requests.post(API_URL, headers=headers, json=payload)
+                    response = requests.post(API_URL, headers=headers, data=json.dumps(payload))
                     
                     if response.status_code == 200:
                         response_json = response.json()
-                        # Parse out the clean answer text from the structural data return array
-                        answer_text = response_json['choices'][0]['message']['content']
+                        # Clean direct navigation down through Google's structural dictionary arrays
+                        answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
                         st.info(answer_text)
                     else:
                         st.error(f"Platform Error ({response.status_code}): {response.text}")
