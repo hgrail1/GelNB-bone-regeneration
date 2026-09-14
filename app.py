@@ -11,7 +11,7 @@ st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
 # --- 2. CONFIGURE THE GOOGLE GEMINI AI CHAT ENGINE ---
 # Paste your free Google AI Studio key here:
-GOOGLE_API_KEY = "AQ.Ab8RN6KSehexU5fQSLmeiW4cvmljbQ-D24AKpK4ICi6mvxzujQ"
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 
 if GOOGLE_API_KEY != "PASTE_YOUR_API_KEY_HERE":
     genai.configure(api_key=GOOGLE_API_KEY)
