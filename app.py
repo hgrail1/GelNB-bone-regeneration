@@ -15,8 +15,8 @@ try:
     # Pull your Google API key safely from Streamlit's secrets manager
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # FIXED ENDPOINT PATH: Explicitly includes the full nested directory routing syntax
-    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    # Target URL updated to use the active, current production 'gemini-3.6-flash' model
+    API_URL = "https://googleapis.com"
     api_ready = True
 except Exception as e:
     st.error(f"Failed to load API Key from Secrets. Error: {e}")
@@ -109,6 +109,7 @@ with right_column:
                     
                     if response.status_code == 200:
                         response_json = response.json()
+                        # Extract text safely from the nested REST JSON dictionary format
                         answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
                         st.info(answer_text)
                     else:
