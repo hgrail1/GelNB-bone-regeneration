@@ -1,16 +1,26 @@
 import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
+import google.generativeai as genai
 
-# --- 1. SET UP THE WEB PAGE PANEL ---
-st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="centered")
+# --- 1. SET UP THE APPLICATION INTERFACE ---
+st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="wide")
 
 st.title("🦷 GelNB-DES Hydrogel Platform")
-st.subheader("Predictive Modeling for Dental Bone Regeneration Maturation")
-st.write("Adjust the formulation parameters below to predict mechanical strength and degradation kinetics.")
+st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
-# --- 2. TRAIN THE BASE MODEL (Using your lab dataset) ---
-@st.cache_data # This keeps the AI model loaded in the background so it responds instantly
+# --- 2. CONFIGURE THE GOOGLE GEMINI AI CHAT ENGINE ---
+# Paste your free Google AI Studio key here:
+GOOGLE_API_KEY = "AQ.Ab8RN6KSehexU5fQSLmeiW4cvmljbQ-D24AKpK4ICi6mvxzujQ"
+
+if GOOGLE_API_KEY != "PASTE_YOUR_API_KEY_HERE":
+    genai.configure(api_key=GOOGLE_API_KEY)
+    ai_model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    ai_model = None
+
+# --- 3. TRAIN THE PREDICTIVE MODELLING AI ---
+@st.cache_data
 def train_biomaterial_model():
     data = {
         'GelNB_percent': [5.0, 10.0, 7.5, 12.0, 5.0],
@@ -23,51 +33,58 @@ def train_biomaterial_model():
     df = pd.DataFrame(data)
     X = df[['GelNB_percent', 'DES_percent', 'LAP_mM', 'Light_secs']]
     Y = df[['Compressive_MPa', 'Degradation_pct']]
-    
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, Y)
     return model
 
 model = train_biomaterial_model()
 
-# --- 3. CREATE INTERACTIVE SLIDERS FOR THE USER ---
-st.sidebar.header("🧪 Adjust Hydrogel Formulation Recipe")
+# --- 4. CREATE SIDEBAR RECIPE SLIDERS ---
+st.sidebar.header("🧪 Adjust Hydrogel Recipe")
+user_gelnb = st.sidebar.slider("GelNB Concentration (%)", 3.0, 15.0, 9.0, 0.5)
+user_des = st.sidebar.slider("Deep Eutectic Solvent (%)", 0.0, 30.0, 18.0, 1.0)
+user_lap = st.sidebar.slider("LAP Concentration (mM)", 0.5, 3.0, 1.8, 0.1)
+user_light = st.sidebar.slider("Blue Light Exposure (seconds)", 10, 90, 50, 5)
 
-user_gelnb = st.sidebar.slider("GelNB Concentration (%)", min_value=3.0, max_value=15.0, value=9.0, step=0.5)
-user_des = st.sidebar.slider("Deep Eutectic Solvent (%)", min_value=0.0, max_value=30.0, value=18.0, step=1.0)
-user_lap = st.sidebar.slider("LAP Concentration (mM)", min_value=0.5, max_value=3.0, value=1.8, step=0.1)
-user_light = st.sidebar.slider("Blue Light Exposure (seconds)", min_value=10, max_value=90, value=50, step=5)
-
-# --- 4. EXECUTE AI PREDICTION LIVE ---
-new_recipe = pd.DataFrame([{
-    'GelNB_percent': user_gelnb,
-    'DES_percent': user_des,
-    'LAP_mM': user_lap,
-    'Light_secs': user_light
-}])
-
+# Calculate live mechanical predictions
+new_recipe = pd.DataFrame([{'GelNB_percent': user_gelnb, 'DES_percent': user_des, 'LAP_mM': user_lap, 'Light_secs': user_light}])
 prediction = model.predict(new_recipe)
 predicted_mpa = prediction[0][0]
 predicted_deg = prediction[0][1]
 
-# --- 5. DISPLAY PRESENTABLE RESULTS TO THE USER ---
-st.markdown("---")
-st.markdown("### 📊 AI Virtual Lab Predictions")
+# --- 5. LAYOUT: SPLIT SCREEN INTO PREDICTIONS VS CHAT PANEL ---
+left_column, right_column = st.columns(2)
 
-col1, col2 = st.columns(2)
-
-with col1:
+with left_column:
+    st.markdown("### 📊 Mechanical & Kinetic Outputs")
+    
     st.metric(label="Predicted Compressive Strength", value=f"{predicted_mpa:.2f} MPa")
     if predicted_mpa < 1.0:
-        st.warning("⚠️ May be too weak for load-bearing alveolar bone defects.")
+        st.warning("⚠️ May be structurally too weak for load-bearing alveolar bone defects.")
     elif 1.0 <= predicted_mpa <= 4.0:
-        st.success("✅ Favorable range for early-stage dental bone scaffold integration.")
+        st.success("✅ Favorable modulus for early mechanical integration in jaw sockets.")
     else:
-        st.info("💡 High structural rigidity; ensure porosity remains adequate for cellular infiltration.")
-
-with col2:
+        st.info("💡 High rigidity; ensure crosslinking density doesn't completely block cell infiltration.")
+        
     st.metric(label="Predicted 14-Day Degradation Rate", value=f"{predicted_deg:.1f}%")
     if predicted_deg > 50.0:
-        st.danger("❌ Fast degradation! Gel may collapse before osteoblasts deposit native bone matrix.")
+        st.danger("❌ Collapses too fast! Matrix will vanish before osteoblasts finish depositing mineralized bone.")
     else:
-        st.success("✅ Gradual degradation supports structural stability during bone maturation.")
+        st.success("✅ Gradual maturation matching natural bone remodeling timelines.")
+
+with right_column:
+    st.markdown("### 💬 Ask the Platform Assistant")
+    st.write("Type a custom scientific question about GelNB, LAP crosslinking, or Deep Eutectic Solvents below:")
+    
+    # Text input box for user questions
+    user_question = st.text_input("Your Question:", placeholder="e.g., Why is LAP better than Irgacure for dental use?")
+    
+    if user_question:
+        if ai_model:
+            with st.spinner("AI is analyzing biomaterial properties..."):
+                # Inject dental-specific expert context behind the scenes so the AI responds like a biomaterial scientist
+                expert_prompt = f"You are an elite expert AI in dental bone regeneration biomaterials. Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), and LAP photoinitiator with 405nm blue light. Answer this question concisely and scientifically: {user_question}"
+                response = ai_model.generate_content(expert_prompt)
+                st.info(response.text)
+        else:
+            st.error("⚠️ Please insert your valid Google API Key on line 11 of app.py to activate the chat function.")
