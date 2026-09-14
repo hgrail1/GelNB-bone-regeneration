@@ -10,16 +10,19 @@ st.set_page_config(page_title="GelNB-DES Bone Regeneration Predictor", layout="w
 st.title("🦷 GelNB-DES Hydrogel Platform")
 st.subheader("Predictive Modeling & AI Assistant for Dental Bone Regeneration")
 
-# --- 2. CONFIGURE THE CORRECT NATIVE GEMINI API ROUTE ---
+# --- 2. CONFIGURE THE NATIVE GEMINI API CONNECTION ---
 try:
-    # Safely pull your Google API key from Streamlit's secrets manager
-    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+    # 1. Pull the raw raw string text from Secrets
+    raw_secret = str(st.secrets["GOOGLE_API_KEY"])
     
-    # DEFINITIVE NATIVE ENDPOINT: Mapped using the globally stable v1beta architecture
-    API_URL = f"https://googleapis.com{GOOGLE_API_KEY}"
+    # 2. SELF-CLEANING MECHANIC: Automatically strip out accidental text wrappers
+    clean_key = raw_secret.replace("GOOGLE_API_KEY", "").replace("=", "").replace('"', "").replace("'", "").strip()
+    
+    # 3. Base endpoint address targeting the modern architecture
+    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     api_ready = True
 except Exception as e:
-    st.error(f"Failed to load API Key from Secrets. Error: {e}")
+    st.error(f"Failed to parse secret credentials. Error: {e}")
     api_ready = False
 
 # --- 3. TRAIN THE PREDICTIVE MODELLING AI ---
@@ -49,11 +52,11 @@ user_des = st.sidebar.slider("Deep Eutectic Solvent (%)", 0.0, 30.0, 18.0, 1.0)
 user_lap = st.sidebar.slider("LAP Concentration (mM)", 0.5, 3.0, 1.8, 0.1)
 user_light = st.sidebar.slider("Blue Light Exposure (seconds)", 10, 90, 50, 5)
 
-# Calculate live mechanical predictions from matrix
+# Calculate live mechanical predictions
 new_recipe = pd.DataFrame([{'GelNB_percent': user_gelnb, 'DES_percent': user_des, 'LAP_mM': user_lap, 'Light_secs': user_light}])
 prediction = model.predict(new_recipe)
-predicted_mpa = prediction[0][0]
-predicted_deg = prediction[0][1]
+predicted_mpa = prediction
+predicted_deg = prediction
 
 # --- 5. LAYOUT: SPLIT SCREEN INTO PREDICTIONS VS CHAT PANEL ---
 left_column, right_column = st.columns(2)
@@ -83,16 +86,20 @@ with right_column:
     
     if user_question:
         if api_ready:
-            with st.spinner("Assistant is formulating response..."):
+            with st.spinner("Gemini is analyzing biomaterial properties..."):
                 expert_prompt = (
                     "You are an elite expert AI in dental bone regeneration biomaterials. "
                     "Context: We are developing a platform using Gelatin-Norbornene (GelNB), Deep Eutectic Solvents (DES), "
-                    "and LAP photoinitiator with 405nm blue light. Give concise, highly scientific answers. "
-                    f"Question: {user_question}"
+                    "and LAP photoinitiator with 405nm blue light. "
+                    f"Answer this question concisely and scientifically: {user_question}"
                 )
                 
-                # Standard native parameters schema configuration
-                headers = {"Content-Type": "application/json"}
+                # Use standard header-based developer key authentication
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": clean_key
+                }
+                
                 payload = {
                     "contents": [{
                         "parts": [{
@@ -106,12 +113,11 @@ with right_column:
                     
                     if response.status_code == 200:
                         response_json = response.json()
-                        # Clean direct navigation down through Google's structural dictionary arrays
-                        answer_text = response_json['candidates'][0]['content']['parts'][0]['text']
+                        answer_text = response_json['candidates']['content']['parts']['text']
                         st.info(answer_text)
                     else:
-                        st.error(f"Platform Error ({response.status_code}): {response.text}")
+                        st.error(f"Google API Error ({response.status_code}): {response.text}")
                 except Exception as api_err:
-                    st.error(f"Network Connection Error: {api_err}")
+                    st.error(f"Network Processing Fault: {api_err}")
         else:
-            st.error("⚠️ AI Chat engine is offline. Verify your GOOGLE_API_KEY value is saved in the Secrets panel.")
+            st.error("⚠️ AI Chat engine is offline. Check secret credentials structure configuration.")
